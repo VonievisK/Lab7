@@ -39,20 +39,15 @@ public class Commands{
     }
     /**
      * выводит информацию о коллекции
-     *
      * @param listOfShows    коллекция объектов класса Show
-     * @param date           дата создания коллекции
-     * @param dateOfChanging дата последнего изменения коллекции
      */
-    public static void info(CopyOnWriteArrayList<Show> listOfShows, Date date, Date dateOfChanging, Socket clientSocket) {
-        String allInfo = "Тип коллекции: " + listOfShows.getClass() + "\n" + "Кол-во элементов: " + listOfShows.size() +
-                "\n" + "Дата создания: " + date + "\n" + "Дата последнего взаимодействия: " + dateOfChanging;
+    public static void info(CopyOnWriteArrayList<Show> listOfShows, Socket clientSocket) {
+        String allInfo = "Тип коллекции: " + listOfShows.getClass() + "\n" + "Кол-во элементов: " + listOfShows.size();
         Commands.sendMessageToClient(allInfo, clientSocket);
     }
 
     /**
      * вывести на экран нашу коллекцию
-     *
      * @param listOfShows коллекция объектов класса Show
      */
     public static void show(CopyOnWriteArrayList<Show> listOfShows, Socket clientSocket) {
@@ -119,15 +114,17 @@ public class Commands{
      * @param listOfShows коллекция объектов класса Show
      */
     public static boolean addElement(String command, CopyOnWriteArrayList<Show> listOfShows) {
+        String creator = "dsd";
+        String name = null;
         int rating = 0;
-        ThemesList name = null;
+        ThemesList theme = null;
         String place = null;
         String[] nameAndRating = CompareToCommand.readJSON(command.substring(5, command.length() - 1));
         for (int i = 0; i < 6; i++) {
             // System.err.println(nameAndRating[i]);
             switch (nameAndRating[i]) {
                 case "Theme":
-                    name = MakeStringIntoTheme.stringIntoTheme(nameAndRating[i + 1]);
+                    theme = MakeStringIntoTheme.stringIntoTheme(nameAndRating[i + 1]);
                     break;
                 case "Rating":
                     rating = Integer.parseInt(nameAndRating[i + 1]);
@@ -135,13 +132,16 @@ public class Commands{
                 case "Place":
                     place = nameAndRating[i + 1];
                     break;
+                case "Name":
+                    name = "ss";
+                    break;
             }
         }
         if (name == null) {
             System.err.println("Не введена тема шоу");
             return false;
         } else {
-            listOfShows.add(new DancingShow(rating, name, place));
+            listOfShows.add(new DancingShow(name, rating, theme, place, creator));
             return true;
         }
     }
@@ -178,6 +178,7 @@ public class Commands{
         try (BufferedReader reader = new BufferedReader(new FileReader("C:/Users/derro/IdeaProjects/SuperTest/src/infoAboutShows.txt"))) {
             //readline - берем нашу строку, replaceAll - удаляем все пробелы, split - разделяем по запятой
             ThemesList theme = null;
+            String creator = "sss";
             int rating = 0;
             int index = 0;
             String placeOfShow = null;
@@ -199,11 +200,23 @@ public class Commands{
                     index++;
                 }
                 index = 0;
-                listOfShows.add(new DancingShow(rating, theme, placeOfShow));
+                String name = "s";
+                listOfShows.add(new DancingShow(name, rating, theme, placeOfShow, creator));
             }
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
         return listOfShows;
+    }
+
+    /**
+     * если нужно красиво сделать выбор из двух элементов. просто рофлан метод, если что
+     */
+    public static void PrintChoice(String firstChoice, String secondChoice){
+        System.out.print("(");
+        System.err.print(firstChoice);
+        System.out.print("/");
+        System.err.print(secondChoice);
+        System.out.print(")" + "\n");
     }
 }

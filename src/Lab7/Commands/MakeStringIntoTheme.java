@@ -6,7 +6,7 @@ import Lab7.Shows.ThemesList;
  * Т.к. у нас темы хранятся в ENUM, то когда к нам приходит строка, нужно как-то сравнивать ее с объектом
  * класса ThemeList, и получать из строки тему шоу
  */
-public class MakeStringIntoTheme{
+public class MakeStringIntoTheme {
     public static ThemesList stringIntoTheme(String name) {
         ThemesList theme;
         switch (name) {
@@ -23,8 +23,9 @@ public class MakeStringIntoTheme{
                 theme = ThemesList.HUMOR;
                 return theme;
             default:
-                //System.out.println("Не получилось преобразовать строку в тему");
-                return null;
+                System.err.println("Введена неверная тема шоу. Шоу без темы. Это можно изменить" +
+                        "коммандой show.changeTheme(* НОВАЯ ТЕМА ШОУ *)");
+                return ThemesList.NOTHEME;
         }
     }
 

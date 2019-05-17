@@ -13,7 +13,7 @@ public class ConnectToDatabase {
         this.password = password;
     }
 
-    public void getConnection(){
+    public Connection getConnection(){
         System.out.println("Проверяем, есть ли подключение к PostgreSQL JDBC");
         try {
             Class.forName("org.postgresql.Driver");
@@ -36,8 +36,10 @@ public class ConnectToDatabase {
 
         if (connection != null) {
             System.out.println("Успешное подключение к базе данных");
+            return connection;
         } else {
             System.out.println("Не удалось подключиться к базе данных");
+            return null;
         }
     }
 }

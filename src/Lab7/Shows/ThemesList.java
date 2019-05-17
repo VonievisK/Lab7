@@ -4,7 +4,7 @@ package Lab7.Shows;
  * список тем, на которые может быть шоу
  */
 public enum ThemesList {
-    SPACE, DANCING, NEWS, HUMOR;
+    SPACE, DANCING, NEWS, HUMOR, NOTHEME;
 
     @Override
     public String toString() {
@@ -17,6 +17,8 @@ public enum ThemesList {
                 return "News";
             case HUMOR:
                 return "Humor";
+            case NOTHEME:
+                return "NoTheme";
             default:
                 return null;
         }

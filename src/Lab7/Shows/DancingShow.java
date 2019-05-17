@@ -1,12 +1,15 @@
 package Lab7.Shows;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 public class DancingShow extends Show {
-    public DancingShow(int rating, ThemesList theme, String place) {
-        super(rating, theme, place);
+    public DancingShow(String name, int rating, ThemesList theme, String place, String creator) {
+        super(name, rating, theme, place, creator);
     }
-
+    public DancingShow(String name, int rating, ThemesList theme, String place, String creator, LocalDateTime dateOfCreation) {
+        super(name, rating, theme, place, creator, dateOfCreation);
+    }
     public void previewShow() {
         System.out.println("Послышалась музыка. На экране появились танцующие пары.");
     }
@@ -17,7 +20,8 @@ public class DancingShow extends Show {
 
     @Override
     public String toString() {
-        return (getRating() + " " + getTheme().toString() + " " + getPlace() + " " +  getData() + "\n");
+        return (getName() + " " + getRating() + " " + getTheme().toString() + " " + getPlace() + " " +  getData() +
+                "\n");
     }
 
     @Override
