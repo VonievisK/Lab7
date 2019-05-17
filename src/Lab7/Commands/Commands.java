@@ -5,8 +5,15 @@ import Lab7.Shows.Show;
 import Lab7.Shows.ThemesList;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.Socket;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Scanner;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -210,13 +217,47 @@ public class Commands{
     }
 
     /**
-     * если нужно красиво сделать выбор из двух элементов. просто рофлан метод, если что
+     * хэширование пароля
+     * @param st строка, которую будем хэшировать
+     * @return хэшированная строка
      */
-    public static void PrintChoice(String firstChoice, String secondChoice){
-        System.out.print("(");
-        System.err.print(firstChoice);
-        System.out.print("/");
-        System.err.print(secondChoice);
-        System.out.print(")" + "\n");
+    public static String MD5hash(String st) {
+        MessageDigest messageDigest = null;
+        byte[] digest = new byte[0];
+        try {
+            messageDigest = MessageDigest.getInstance("MD5");
+            messageDigest.reset();
+            messageDigest.update(st.getBytes());
+            digest = messageDigest.digest();
+        } catch (NoSuchAlgorithmException e) {
+            // ошибка возникает, если передаваемый алгоритм в getInstance(...) не существует
+            e.printStackTrace();
+        }
+
+        BigInteger bigInt = new BigInteger(1, digest);
+        String md5Hex = bigInt.toString(16);
+
+        while( md5Hex.length() < 32 ){
+            md5Hex = "0" + md5Hex;
+        }
+
+        return md5Hex;
+    }
+
+    public static HashMap<String, String> updateUsersList(Connection database){
+        HashMap<String, String> Users = new HashMap<>();
+        try {
+            ResultSet data = database.createStatement().executeQuery("select * from \"Users\"");
+            String login;
+            String password;
+            while (data.next()) {
+                login = data.getString("LOGIN");
+                password = data.getString("PASSWORD");
+                Users.put(login, password);
+            }
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+        return Users;
     }
 }

@@ -47,8 +47,7 @@ public class DatabaseClient {
           */
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out));
         String ln = null;
-        System.out.println("Войти или зарегистрироваться?");
-        Commands.PrintChoice("Login", "Register");
+        System.out.println("Войти или зарегистрироваться?(Login/Register)");
         try {
             while ((ln = reader.readLine()) != null) {
                 writer.write(ln + "\n");

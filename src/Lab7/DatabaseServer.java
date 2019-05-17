@@ -44,8 +44,7 @@ public class DatabaseServer {
         HashMap<String, String> Users = new HashMap<>(); // список пользоваталей
         BufferedReader serverCommandReader = new BufferedReader(new InputStreamReader(System.in));
         String serverCommand;
-        System.out.print("Создать базу данных или использовать готовую?");
-        Commands.PrintChoice("Create","Start");
+        System.out.println("Создать базу данных или использовать готовую?(Create/Start)");
         try {
             while ((serverCommand = serverCommandReader.readLine()) != null) {
                 if (serverCommand.equals("Create")) {
@@ -74,7 +73,7 @@ public class DatabaseServer {
                     else {
                         database.createStatement().executeUpdate(
                                 "create table if not exists \"Users\" (\n" +
-                                        "\"LOGIN\" varchar not null,\n" +
+                                        "\"LOGIN\" varchar not null unique,\n" +
                                         "\"PASSWORD\" varchar not null)"
                         );
                         System.out.println("Успешно создана таблица Users");
@@ -92,22 +91,22 @@ public class DatabaseServer {
                     String place;
                     LocalDateTime dateOfCreation;
                     String creator;
-                    while (data.next()){
+                    while (data.next()) {
                         name = data.getString("NAME");
                         theme = MakeStringIntoTheme.stringIntoTheme(data.getString("THEME"));
                         rating = data.getInt("RATING");
                         place = data.getString("PLACE");
                         dateOfCreation = LocalDateTime.parse(data.getString("DATEOFCREATION"));
                         creator = data.getString("CREATOR");
-                        if (ThemesList.DANCING.equals(theme)){
+                        if (ThemesList.DANCING.equals(theme)) {
                             listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
-                        } else if (ThemesList.HUMOR.equals(theme)){
+                        } else if (ThemesList.HUMOR.equals(theme)) {
                             //тут должно быть не dancing show, а humor show
                             listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
-                        } else if (ThemesList.NEWS.equals(theme)){
+                        } else if (ThemesList.NEWS.equals(theme)) {
                             //тут должно быть не dancing show, а news show
                             listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
-                        } else if (ThemesList.SPACE.equals(theme)){
+                        } else if (ThemesList.SPACE.equals(theme)) {
                             //тут должно быть не dancing show, а space show
                             listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
                         } else {
@@ -119,27 +118,18 @@ public class DatabaseServer {
                     break;
                 } else {
                     System.out.println("Введена неверная комманда");
-                    System.out.print("Создать базу данных или использовать готовую?");
-                    Commands.PrintChoice("Create","Start");
+                    System.out.println("Создать базу данных или использовать готовую?(Create/Start)");
                 }
             }
             System.out.println("Сканируем список пользователей");
             /**
              * загрузка списка пользователей
              */
-            ResultSet data = database.createStatement().executeQuery("select * from \"Users\""
-            );
-            String login;
-            String password;
-            while (data.next()){
-                login = data.getString("LOGIN");
-                password = data.getString("PASSWORD");
-                Users.put(login, password);
-            }
+            Users = Commands.updateUsersList(database);
             System.out.println("Список пользователей успешно загружен");
-        } catch (IOException e){
+        } catch (IOException e) {
             System.err.println("Что-то пошло не так при вводе команды");
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.err.println("Возникла проблема при взаимодейтсвии с базой данных");
             e.printStackTrace();
         }
@@ -171,7 +161,7 @@ public class DatabaseServer {
          * создание клиента
          */
         Socket clientSocket = null;
-        while(!serverSocket.isClosed()){
+        while (!serverSocket.isClosed()) {
             try {
                 clientSocket = serverSocket.accept();
             } catch (IOException e) {
@@ -184,22 +174,6 @@ public class DatabaseServer {
             Thread thread = new Thread(new MyThread(serverSocket, clientSocket, listOfShows, database, Users));
             thread.start();
         }
-
-        /**
-         * РОСТИК, при хранении это надо хэшировать
-         */
-        /*
-        PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
-                .useLower(true)
-                .useUpper(true)
-                .useDigits(true)
-                .build();
-        String password = passwordGenerator.generate(6);
-        System.out.println(password);
-
-        while (true){
-
-        }*/
     }
 }
     /*public static void main(String[] args){
