@@ -19,13 +19,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Commands{
     /**
-     * удаляет первый элемент нашей строки
-     *
-     * @param listOfShows коллекция объектов класса Show
+     * удаляет первый элемент
+     * @param listOfShows коллекция, из которой удаляем элемент
+     * @param clientSocket клиент, которому отправляем результат выполнения
+     * @param userName имя пользователя, который хочет взаимодействовать с объектом
      */
-    public static void removeFirst(CopyOnWriteArrayList<Show> listOfShows, Socket clientSocket) {
-        listOfShows.remove(0);
-        sendMessageToClient("Успешно удален первый элемент из коллекции", clientSocket);
+    public static void removeFirst(CopyOnWriteArrayList<Show> listOfShows, Socket clientSocket, String userName) {
+        if (listOfShows.get(0).getCreator().equals(userName)) {
+            listOfShows.remove(0);
+            sendMessageToClient("Успешно удален первый элемент из коллекции", clientSocket);
+        } else {
+            sendMessageToClient("Не удалось удалить элемент. Нет доступа к элементу", clientSocket);
+        }
     }
 
     /**
@@ -67,25 +72,37 @@ public class Commands{
     }
 
     /**
-     * удаляет элемент по его номеру
-     *
-     * @param command     введеная пользователем команда (строка)
-     * @param listOfShows коллекция объектов класса Show
+     * удаляет элемент по индексу, либо больший(меньший) данного индекса
+     * @param command строка пользователя, из нее получаем индекс
+     * @param userName имя пользователя, проверяем, может ли он удалить элемент
+     * @param listOfShows коллекция наших элементов
+     * @param clientSocket сокет клиента, которму отправляем результат
      */
-    public static void remove(String command, CopyOnWriteArrayList<Show> listOfShows, Socket clientSocket) {
+    public static void remove(String command, String userName,
+                              CopyOnWriteArrayList<Show> listOfShows, Socket clientSocket) {
+        //кол-во неудаленных элементов для remove_greater и remove_lower
+        int amountOfNonDeletedElements = 0;
+        /**
+         * выполняем комманду remove
+         */
         if (command.startsWith("remove {")) {
             int numberOfElement;
             String[] keyAndValue = CompareToCommand.readJSON(command);
             //получаем число, которое содержится в фигурных скобках
-            keyAndValue[1] = keyAndValue[1].substring(0, keyAndValue.length - 1);
-            numberOfElement = Integer.parseInt(keyAndValue[1]);
+            numberOfElement = Integer.parseInt(keyAndValue[1].substring(0, keyAndValue[1].length() - 1));
             if (numberOfElement > listOfShows.size() - 1) {
                 Commands.sendMessageToClient("Такого элемента не существует", clientSocket);
+            } else if (!listOfShows.get(numberOfElement).getCreator().equals(userName)){
+                Commands.sendMessageToClient("Нет доступа к данному элементу", clientSocket);
             } else {
                 listOfShows.remove(numberOfElement);
                 Commands.sendMessageToClient("Успешно удален " + numberOfElement + " элемент из коллекции", clientSocket);
             }
-        } else {
+        }
+        /**
+         * выполяем комманду remove_greater
+         */
+        else {
             int numberOfElementGreaterLower;
             numberOfElementGreaterLower = Integer.parseInt(command.replaceAll("\\D+", ""));
             if (command.startsWith("remove_g")) {
@@ -95,43 +112,70 @@ public class Commands{
                     Commands.sendMessageToClient("Элементов, больших данного, не существует", clientSocket);
                 } else {
                     for (int i = listOfShows.size() - 1; i > numberOfElementGreaterLower; i--) {
-                        listOfShows.remove(i);
+                        if (listOfShows.get(i).getCreator().equals(userName)) {
+                            listOfShows.remove(i);
+                        } else {
+                            amountOfNonDeletedElements++;
+                        }
                     }
-                    Commands.sendMessageToClient("Успешно удалены элементы, большие чем " + numberOfElementGreaterLower, clientSocket);
+                    if (amountOfNonDeletedElements == 0) {
+                        Commands.sendMessageToClient("Успешно удалены элементы, большие чем "
+                                + numberOfElementGreaterLower, clientSocket);
+                    } else {
+                        Commands.sendMessageToClient("Удалены не все элементы. Это связано с доступом к ним." +
+                                " Колличество не удаленных " +
+                                "элементов: " + amountOfNonDeletedElements, clientSocket);
+                    }
                 }
-            } else {
+            }
+            /**
+             * выполянем комманду remove_lower
+             */
+            else {
                 if (numberOfElementGreaterLower > listOfShows.size() - 1) {
                     Commands.sendMessageToClient("Такого элемента не существует", clientSocket);
                 } else if (numberOfElementGreaterLower == 0) {
                     Commands.sendMessageToClient("Элементов, меньших данного, не существует", clientSocket);
                 } else {
                     for (int i = 0; i < numberOfElementGreaterLower; i++) {
-                        listOfShows.remove(0);
+                        if (listOfShows.get(i).getCreator().equals(userName)) {
+                            listOfShows.remove(0);
+                        } else {
+                            amountOfNonDeletedElements++;
+                        }
                     }
-                    Commands.sendMessageToClient("Успешно удалены элементы, меньшие чем " + numberOfElementGreaterLower, clientSocket);
+                    if (amountOfNonDeletedElements == 0) {
+                        Commands.sendMessageToClient("Успешно удалены элементы, меньшие чем "
+                                + numberOfElementGreaterLower, clientSocket);
+                    } else {
+                        Commands.sendMessageToClient("Удалены не все элементы. Это связано с доступом к ним." +
+                                " Колличество не удаленных " +
+                                "элементов: " + amountOfNonDeletedElements, clientSocket);
+                    }
                 }
             }
         }
     }
+
     /**
      * добавить элемент в нашу коллекцию. Сначала делаем массив строк, из которого получаем имя шоу и его рейтинг.
      * после создаем шоу и добавляем его в коллекцию
-     *
-     * @param command     введеная пользователем команда (строка)
-     * @param listOfShows коллекция объектов класса Show
+     * @param command комманда пользователя
+     * @param listOfShows коллекция, в которую мы добавляем шоу
+     * @param creator создатель объекта
+     * @return
      */
-    public static boolean addElement(String command, CopyOnWriteArrayList<Show> listOfShows) {
-        String creator = "dsd";
+    public static boolean addElement(String command, CopyOnWriteArrayList<Show> listOfShows, String creator) {
         String name = null;
         int rating = 0;
         ThemesList theme = null;
         String place = null;
         String[] nameAndRating = CompareToCommand.readJSON(command.substring(5, command.length() - 1));
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 8; i++) {
             // System.err.println(nameAndRating[i]);
             switch (nameAndRating[i]) {
                 case "Theme":
-                    theme = MakeStringIntoTheme.stringIntoTheme(nameAndRating[i + 1]);
+                    theme = Commands.stringIntoTheme(nameAndRating[i + 1]);
                     break;
                 case "Rating":
                     rating = Integer.parseInt(nameAndRating[i + 1]);
@@ -140,12 +184,12 @@ public class Commands{
                     place = nameAndRating[i + 1];
                     break;
                 case "Name":
-                    name = "ss";
+                    name = nameAndRating[i + 1];
                     break;
             }
         }
-        if (name == null) {
-            System.err.println("Не введена тема шоу");
+        if (name == null || theme == null || place == null || name.equals("") || place.equals("")) {
+            System.err.println("Не верно введены параметры шоу");
             return false;
         } else {
             listOfShows.add(new DancingShow(name, rating, theme, place, creator));
@@ -155,6 +199,8 @@ public class Commands{
 
     /**
      * метод, в котором мы отправляем String клиенту
+     * КОГДА МЫ ОТПРАВЛЯЕМ ЕМУ ЧЕРТОВО СООБЩЕНИЕ, мы снова ждем от него ввода. Если два раза использовать этот метод,
+     * то происходит дичь и мы не можем дальше нормально работать. (сбивается последовательность наших действий)
      * @param message - строка, которую надо отправить
      * @param clientSocket - сокет клиента, которому надо отправить ответ
      */
@@ -166,8 +212,6 @@ public class Commands{
             System.out.println("Невозможно отправить ответ клиенту");
             System.exit(-1);
         }
-        PrintWriter writer = null;
-        writer = new PrintWriter(outStream, true);
         //чтобы отправлять String клиенту
         DataOutputStream outStringStream = new DataOutputStream(outStream);
         try {
@@ -177,87 +221,31 @@ public class Commands{
         }
     }
 
-    public static CopyOnWriteArrayList<Show> makeLinkedListFromFile(){
-        CopyOnWriteArrayList<Show> listOfShows = new CopyOnWriteArrayList<>();
-        // /Users/vonievisk/Library/Mobile Documents/com~apple~CloudDocs/Учеба/Java/lab3-5/src/Lab4/infoAboutShows.txt - дефолтный путь
-        // /home/s265949/Lab4/infoAboutShows.txt - путь на гелиосе
-        // заполняем коллекцию из файла
-        try (BufferedReader reader = new BufferedReader(new FileReader("C:/Users/derro/IdeaProjects/SuperTest/src/infoAboutShows.txt"))) {
-            //readline - берем нашу строку, replaceAll - удаляем все пробелы, split - разделяем по запятой
-            ThemesList theme = null;
-            String creator = "sss";
-            int rating = 0;
-            int index = 0;
-            String placeOfShow = null;
-            String inLine;
-            while ((inLine = reader.readLine()) != null){
-                Scanner scanner = new Scanner(inLine);
-                scanner.useDelimiter(", ");
-                while (scanner.hasNext()){
-                    String data = scanner.next();
-                    if(index == 0){
-                        rating = Integer.parseInt(data);
-                    } else if (index == 1){
-                        theme = MakeStringIntoTheme.stringIntoTheme(data);
-                    } else if (index == 2){
-                        placeOfShow = data;
-                    } else {
-                        System.out.println("В файле некорректно введены данные о шоу");
-                    }
-                    index++;
-                }
-                index = 0;
-                String name = "s";
-                listOfShows.add(new DancingShow(name, rating, theme, placeOfShow, creator));
-            }
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        }
-        return listOfShows;
-    }
-
     /**
-     * хэширование пароля
-     * @param st строка, которую будем хэшировать
-     * @return хэшированная строка
+     * Т.к. у нас темы хранятся в ENUM, то когда к нам приходит строка, нужно как-то сравнивать ее с объектом
+     * класса ThemeList, и получать из строки тему шоу
+     * @param stringTheme строка, которую мы хотим преобразовать в тему из ENUM
+     * @return тема шоу типа ThemeList
      */
-    public static String MD5hash(String st) {
-        MessageDigest messageDigest = null;
-        byte[] digest = new byte[0];
-        try {
-            messageDigest = MessageDigest.getInstance("MD5");
-            messageDigest.reset();
-            messageDigest.update(st.getBytes());
-            digest = messageDigest.digest();
-        } catch (NoSuchAlgorithmException e) {
-            // ошибка возникает, если передаваемый алгоритм в getInstance(...) не существует
-            e.printStackTrace();
+    public static ThemesList stringIntoTheme(String stringTheme) {
+        ThemesList theme;
+        switch (stringTheme) {
+            case "Space":
+                theme = ThemesList.SPACE;
+                return theme;
+            case "Dancing":
+                theme = ThemesList.DANCING;
+                return theme;
+            case "News":
+                theme = ThemesList.NEWS;
+                return theme;
+            case "Humor":
+                theme = ThemesList.HUMOR;
+                return theme;
+            default:
+                System.err.println("Введена неверная тема шоу. Шоу без темы. Это можно изменить" +
+                        "коммандой show.changeTheme(* НОВАЯ ТЕМА ШОУ *)");
+                return ThemesList.NOTHEME;
         }
-
-        BigInteger bigInt = new BigInteger(1, digest);
-        String md5Hex = bigInt.toString(16);
-
-        while( md5Hex.length() < 32 ){
-            md5Hex = "0" + md5Hex;
-        }
-
-        return md5Hex;
-    }
-
-    public static HashMap<String, String> updateUsersList(Connection database){
-        HashMap<String, String> Users = new HashMap<>();
-        try {
-            ResultSet data = database.createStatement().executeQuery("select * from \"Users\"");
-            String login;
-            String password;
-            while (data.next()) {
-                login = data.getString("LOGIN");
-                password = data.getString("PASSWORD");
-                Users.put(login, password);
-            }
-        } catch (SQLException e){
-            e.printStackTrace();
-        }
-        return Users;
     }
 }

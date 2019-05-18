@@ -1,11 +1,8 @@
 package Lab7;
 
-import Lab7.Commands.Commands;
-import Lab7.Commands.CompareToCommand;
-import Lab7.Commands.PasswordGenerator;
+import Lab7.Commands.*;
 import Lab7.Shows.Show;
 import Lab7.Shows.ShowComparator;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -23,7 +20,7 @@ public class MyThread implements Runnable {
     private ServerSocket serverSocket;
     private Socket clientSocket;
     private CopyOnWriteArrayList<Show> listOfShows;
-    private Connection database = null;
+    private Connection database;
     private HashMap<String, String> Users;
 
     public MyThread(ServerSocket serverSocket, Socket clientSocket, CopyOnWriteArrayList<Show> listOfShows,
@@ -51,14 +48,15 @@ public class MyThread implements Runnable {
          * Поток вывода клиенту, отправляем ему сообщения
          * Читаем поток и отправляем ответ
          */
-        BufferedReader reader = null;
+        BufferedReader reader;
         reader = new BufferedReader(new InputStreamReader(inStream));
-        String readClientStream = null;
+        String readClientStream;
         /**
          * авторизируем пользователя
          * key1 - пользователь выбирает либо залогиниться, либо зарегестрироваться
          * если он выбрал что-то из этого, далее он попадает в key2
-         * key2 - пользователь вводит либо почту для входа, либо почту для получения письма с паролем.
+         * key2 - пользователь вводит либо почту для входа, либо, если он ввел свою почту, добавляем его в базу данных
+         * key3 - ввод пароля и авторизация
          * так же он может вернуться на выбор регистрации или логина с помощью комманды back
          */
         boolean key1 = true;
@@ -110,7 +108,7 @@ public class MyThread implements Runnable {
                         } else if (Users.get(readClientStream) == null && userChoice.equals("Login")) {
                             Commands.sendMessageToClient("Нет пользователя с таким логином, " +
                                     "попробуйте еще раз" + "\n" + "Вы так же можете" +
-                                    "вернуться к выбору Login/Password с помощью комманды back", clientSocket);
+                                    "вернуться к выбору Login/Register с помощью комманды back", clientSocket);
                         } else if (userChoice.equals("Login")) {
                             //переход в третью фазу по логину
                             Commands.sendMessageToClient("Введите пароль", clientSocket);
@@ -143,10 +141,12 @@ public class MyThread implements Runnable {
                              * отправляем его на почту
                              */
                             System.err.println(password);
+                            EmailSender sendPassword = new EmailSender();
+                            System.out.println(sendPassword.sendEmail("vov4ik.tereschenko@yandex.ru", password));
                             /**
                              * хэшируем пароль по алгоритму
                              */
-                            String passwordHax = Commands.MD5hash(password);
+                            String passwordHax = DatabaseCommands.MD5hash(password);
                             /**
                              * записываем хэшированный пароль и имя в базу данных
                              */
@@ -162,7 +162,7 @@ public class MyThread implements Runnable {
                             } catch (SQLException e){
                                 e.printStackTrace();
                             }
-                            Users = Commands.updateUsersList(database);
+                            Users = DatabaseCommands.importUsers(database);
                             Commands.sendMessageToClient("Введите пароль", clientSocket);
                         }
                     }
@@ -171,8 +171,11 @@ public class MyThread implements Runnable {
                      * третья фаза - либо юзверь вводит пароль и заходит, либо нет
                      */
                     if (key3){
-                        if ((Users.get(userMail)).equals(Commands.MD5hash(readClientStream))){
-                            Commands.sendMessageToClient("Успешная авторизация", clientSocket);
+                        if ((Users.get(userMail)).equals(DatabaseCommands.MD5hash(readClientStream))){
+                            Commands.sendMessageToClient("Успешная авторизация.\n" +
+                                    "список доступных комманд:\n" +
+                                    "show | info |remove_first | remove | remove_greater | remove_lower | " +
+                                    "stop | sort_by_theme | sort_by_rating ", clientSocket);
                             System.out.println("Пользователь " + userMail + " авторизовался");
                             keyQuit = true;
                             break;
@@ -187,7 +190,7 @@ public class MyThread implements Runnable {
                             userMail = "";
                         } else {
                             Commands.sendMessageToClient("Неверный пароль. Попробуйте снова " +
-                                    "Вы так же можете вернуться к выбору Login/Password" +
+                                    "\nВы так же можете вернуться к выбору Login/Password" +
                                     " с помощью комманды back", clientSocket);
                         }
                     }
@@ -197,20 +200,20 @@ public class MyThread implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         /**
          * теперь, когда мы авторизовались, можем работать с коллекцией
-         *
          */
         try {
             while (!serverSocket.isClosed()) {
-                OutputStream outClientStream = null;
-                outClientStream = clientSocket.getOutputStream();
-                DataOutputStream outDataClientStream = new DataOutputStream(outClientStream);
                 while ((readClientStream = reader.readLine()) != null) {
                     //удалить первый элемент
                     if (readClientStream.equals("remove_first")) {
-                        Commands.removeFirst(listOfShows, clientSocket);
-                    }//информация о коллекции
+                        Commands.removeFirst(listOfShows, clientSocket, userMail);
+                    } else if (readClientStream.equals("Save")){
+                        DatabaseCommands.UploadShows(database, listOfShows, clientSocket);
+                    }
+                    //информация о коллекции
                     else if (readClientStream.equals("info")) {
                         Commands.info(listOfShows, clientSocket);
                     } //вывести лист
@@ -223,11 +226,11 @@ public class MyThread implements Runnable {
                     else if (readClientStream.equals("sort_by_theme")) {
                         listOfShows = Show.sortShowsBy(ShowComparator.Order.Theme, listOfShows, clientSocket);
                     } //реализация удаления элемента по номеру, большего или меньшего чем данный
-                    else if (CompareToCommand.compareRemove(readClientStream, clientSocket)) {
-                        Commands.remove(readClientStream, listOfShows, clientSocket);
+                    else if (CompareToCommand.compareRemove(readClientStream)) {
+                        Commands.remove(readClientStream, userMail, listOfShows, clientSocket);
                     } //добавляем объект в нашу коллекцию
                     else if (CompareToCommand.compareAdd(readClientStream)) {
-                        if (Commands.addElement(readClientStream, listOfShows)) {
+                        if (Commands.addElement(readClientStream, listOfShows, userMail)) {
                             Commands.sendMessageToClient("Успешно добавлен элемент в коллецию", clientSocket);
                         } else {
                             Commands.sendMessageToClient("Введена неверная комманда", clientSocket);
@@ -235,15 +238,17 @@ public class MyThread implements Runnable {
                     } //остановить программу
                     else if (readClientStream.equals("stop")) {
                         Commands.sendMessageToClient("Вы завершили работу. Идите с богом.", clientSocket);
+                        reader.close();
                         clientSocket.close();
                         clientSocket = null;
                     } else {
-                        Commands.sendMessageToClient("пиши", clientSocket);
+                        Commands.sendMessageToClient("Введена неверная комманда", clientSocket);
                     }
                 }
+                System.out.println("Пользователь " + userMail + " отключился");
             }
         } catch (Exception e){
-            e.printStackTrace();
+            System.out.println("Пользователь " + userMail + " отключился");
         }
     }
 }

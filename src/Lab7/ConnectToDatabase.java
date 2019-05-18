@@ -24,6 +24,7 @@ public class ConnectToDatabase {
         }
 
         System.out.println("PostgreSQL JDBC Driver подключен");
+
         Connection connection = null;
 
         try {

@@ -1,7 +1,6 @@
 package Lab7.Shows;
 
 import Lab7.Commands.Commands;
-import Lab7.Commands.MakeStringIntoTheme;
 
 import java.time.LocalDateTime;
 import java.net.Socket;
@@ -101,7 +100,7 @@ public abstract class Show implements Startable{
      * @param theme - тема шоу в строчном виде
      */
     public void changeTheme(String theme){
-        this.theme = MakeStringIntoTheme.stringIntoTheme(theme);
+        this.theme = Commands.stringIntoTheme(theme);
     }
 
     /**

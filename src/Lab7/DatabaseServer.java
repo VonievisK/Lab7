@@ -1,24 +1,17 @@
 package Lab7;
 
 import Lab7.Commands.Commands;
-import Lab7.Commands.MakeStringIntoTheme;
-import Lab7.Commands.PasswordGenerator;
+import Lab7.Commands.DatabaseCommands;
 import Lab7.Shows.DancingShow;
 import Lab7.Shows.Show;
 import Lab7.Shows.ThemesList;
-
-import javax.jws.soap.SOAPBinding;
-import java.awt.event.KeyEvent;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.sql.Connection;
 
@@ -27,21 +20,22 @@ public class DatabaseServer {
         /**
          * подключаемся к базе данных
          * для гелиоса следующие параметры:
-         * String URL = "jdbc:postgresql://pg";
-         * String userLogin = "s265949";
+         * String URL = "jdbc:postgresql://pg/studs"; jdbc:postgresql://localhost:5433/studs"
+         * String userLogin = "s265949"; postgres
          * String userPassword = "coj266";
          * @database - переменная для обращения к базе данных и получение из нее данных
          */
         String URL = "jdbc:postgresql://localhost:5433/studs";
         String userLogin = "postgres";
-        String userPassword = "";
+        String userPassword = "coj266";
         Connection database = new ConnectToDatabase(URL, userLogin, userPassword).getConnection();
 
         /**
          * импорт или создание базы данных
          */
         CopyOnWriteArrayList<Show> listOfShows = new CopyOnWriteArrayList<>();
-        HashMap<String, String> Users = new HashMap<>(); // список пользоваталей
+        HashMap<String, String> Users = new HashMap<>(); // список пользоваталей, храним в хэшмапе, чтобы был доступ
+                                                         // к пароль по логину
         BufferedReader serverCommandReader = new BufferedReader(new InputStreamReader(System.in));
         String serverCommand;
         System.out.println("Создать базу данных или использовать готовую?(Create/Start)");
@@ -78,13 +72,13 @@ public class DatabaseServer {
                         );
                         System.out.println("Успешно создана таблица Users");
                     }
+                    System.out.println("База данных успешно загружена");
                     break;
                 } else if (serverCommand.equals("Start")) {
                     /**
                      * заполнение коллекции исходя из таблиц в базе данных
                      */
-                    ResultSet data = database.createStatement().executeQuery("select * from \"Shows\""
-                    );
+                    ResultSet data = database.createStatement().executeQuery("select * from \"Shows\"");
                     String name;
                     ThemesList theme;
                     int rating;
@@ -93,7 +87,7 @@ public class DatabaseServer {
                     String creator;
                     while (data.next()) {
                         name = data.getString("NAME");
-                        theme = MakeStringIntoTheme.stringIntoTheme(data.getString("THEME"));
+                        theme = Commands.stringIntoTheme(data.getString("THEME"));
                         rating = data.getInt("RATING");
                         place = data.getString("PLACE");
                         dateOfCreation = LocalDateTime.parse(data.getString("DATEOFCREATION"));
@@ -125,7 +119,7 @@ public class DatabaseServer {
             /**
              * загрузка списка пользователей
              */
-            Users = Commands.updateUsersList(database);
+            Users = DatabaseCommands.importUsers(database);
             System.out.println("Список пользователей успешно загружен");
         } catch (IOException e) {
             System.err.println("Что-то пошло не так при вводе команды");
@@ -171,7 +165,8 @@ public class DatabaseServer {
             /**
              * запускаем для клиента отдельный поток, в котором он будет работать
              */
-            Thread thread = new Thread(new MyThread(serverSocket, clientSocket, listOfShows, database, Users));
+            MyThread myThread = new MyThread(serverSocket, clientSocket, listOfShows, database, Users);
+            Thread thread = new Thread(myThread);
             thread.start();
         }
     }
