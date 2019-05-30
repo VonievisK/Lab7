@@ -1,6 +1,8 @@
 package Lab7.Commands;
 
+import Lab7.Shows.DancingShow;
 import Lab7.Shows.Show;
+import Lab7.Shows.ThemesList;
 
 import java.math.BigInteger;
 import java.net.Socket;
@@ -10,6 +12,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -38,6 +41,48 @@ public class DatabaseCommands {
         return Users;
     }
 
+    /**
+     * загрузить коллекцию из базы данных
+     * @param database
+     * @param listOfShows
+     */
+    public static void ImportDatabase(Connection database, CopyOnWriteArrayList<Show> listOfShows){
+        try {
+            ResultSet data = database.createStatement().executeQuery("select * from \"Shows\"");
+            String name;
+            ThemesList theme;
+            int rating;
+            String place;
+            LocalDateTime dateOfCreation;
+            String creator;
+            while (data.next()) {
+                name = data.getString("NAME");
+                theme = Commands.stringIntoTheme(data.getString("THEME"));
+                rating = data.getInt("RATING");
+                place = data.getString("PLACE");
+                dateOfCreation = LocalDateTime.parse(data.getString("DATEOFCREATION"));
+                creator = data.getString("CREATOR");
+                if (ThemesList.DANCING.equals(theme)) {
+                    listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
+                } else if (ThemesList.HUMOR.equals(theme)) {
+                    //тут должно быть не dancing show, а humor show
+                    listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
+                } else if (ThemesList.NEWS.equals(theme)) {
+                    //тут должно быть не dancing show, а news show
+                    listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
+                } else if (ThemesList.SPACE.equals(theme)) {
+                    //тут должно быть не dancing show, а space show
+                    listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
+                } else {
+                    //тут должно быть шоу без темы
+                    listOfShows.add(new DancingShow(name, rating, theme, place, creator));
+                }
+            }
+            System.out.println("База данных успешно загружена");
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+    }
     /**
      * хэширование пароля
      * @param st строка, которую будем хэшировать
@@ -90,6 +135,35 @@ public class DatabaseCommands {
                 pstmt.executeUpdate();
             }
             Commands.sendMessageToClient("Коллекция успешно загружена в базу данных", clientSocket);
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * если не надо отправлять месседж клиенту
+     * @param database
+     * @param listOfShows
+     */
+    public static void UploadShows(Connection database, CopyOnWriteArrayList<Show> listOfShows){
+        try {
+            database.createStatement().executeUpdate("delete from \"Shows\"");
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+        try {
+            for (int i = 0; i < listOfShows.size(); i++) {
+                PreparedStatement pstmt = database.prepareStatement("insert into " +
+                        "\"Shows\"(\"NAME\", \"THEME\", \"RATING\", \"PLACE\", \"DATEOFCREATION\", \"CREATOR\")" +
+                        " values (?, ?, ?, ?, ?, ?)");
+                pstmt.setString(1, listOfShows.get(i).getName());
+                pstmt.setString(2, listOfShows.get(i).getTheme().toString());
+                pstmt.setString(3, Integer.toString(listOfShows.get(i).getRating()));
+                pstmt.setString(4, listOfShows.get(i).getPlace());
+                pstmt.setString(5, listOfShows.get(i).getData().toString());
+                pstmt.setString(6, listOfShows.get(i).getCreator());
+                pstmt.executeUpdate();
+            }
         } catch (SQLException e){
             e.printStackTrace();
         }

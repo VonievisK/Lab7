@@ -3,6 +3,8 @@ package Lab7;
 import Lab7.Commands.*;
 import Lab7.Shows.Show;
 import Lab7.Shows.ShowComparator;
+
+import javax.swing.*;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -115,7 +117,7 @@ public class MyThread implements Runnable {
                             key2 = false;
                             userChoice = "Password";
                             userMail = readClientStream;
-                        } else if (Users.get(readClientStream) != null){
+                        } else if (Users.get(readClientStream) != null) {
                             Commands.sendMessageToClient("Пользователь с таким логином уже существует. " +
                                     "\nВойти или зарегистрироваться? (Login/Register)", clientSocket);
                             key1 = true;
@@ -124,54 +126,69 @@ public class MyThread implements Runnable {
                             userMail = "";
                         } else {
                             //переход в третью фазу по регистрации
-                            key2 = false;
-                            userChoice = "getPasswordOnEmail";
-                            userMail = readClientStream;
-                            //сразу вписываем пользователя в базу данных, тут же генирируя ему пароль
-                            /**
-                             * генерируем пароль
-                             */
-                            PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
-                                    .useLower(true)
-                                    .useUpper(true)
-                                    .useDigits(true)
-                                    .build();
-                            String password = passwordGenerator.generate(6);
-                            /**
-                             * отправляем его на почту
-                             */
-                            System.err.println(password);
-                            EmailSender sendPassword = new EmailSender();
-                            System.out.println(sendPassword.sendEmail("vov4ik.tereschenko@yandex.ru", password));
-                            /**
-                             * хэшируем пароль по алгоритму
-                             */
-                            String passwordHax = DatabaseCommands.MD5hash(password);
-                            /**
-                             * записываем хэшированный пароль и имя в базу данных
-                             */
-                            try {
+                            if (readClientStream.matches(".*[@]\\w*[.]\\w*")) {
+                                key2 = false;
+                                userChoice = "getPasswordOnEmail";
+                                userMail = readClientStream;
+                                //сразу вписываем пользователя в базу данных, тут же генирируя ему пароль
                                 /**
-                                 * подготавливаем строку к записи в базу данных
+                                 * генерируем пароль
                                  */
-                                PreparedStatement pstmt = database.prepareStatement("insert into " +
+                                PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
+                                        .useLower(true)
+                                        .useUpper(true)
+                                        .useDigits(true)
+                                        .build();
+                                String password = passwordGenerator.generate(6);
+                                /**
+                                 * отправляем его на почту
+                                 */
+                                System.err.println(password);
+                                EmailSender sendPassword = new EmailSender();
+                                if (sendPassword.sendEmail(userMail, password).equals("Failed to send a password to " +
+                                        userMail)){
+                                    System.out.println("Failed to send a password");
+                                    Commands.sendMessageToClient("Не удалось отправить пароль. Попробуйте " +
+                                            "зарегистрироваться снова или войдите в существующий аккаунт. " +
+                                            "(Login/Register)", clientSocket);
+                                    key1 = true;
+                                    key2 = false;
+                                    userChoice = "";
+                                } else {
+                                    /**
+                                     * хэшируем пароль по алгоритму
+                                     */
+                                    String passwordHax = DatabaseCommands.MD5hash(password);
+                                    /**
+                                     * записываем хэшированный пароль и имя в базу данных, если пароль был отправлен
+                                     */
+                                    try {
+                                        /**
+                                         * подготавливаем строку к записи в базу данных
+                                         */
+                                        PreparedStatement pstmt = database.prepareStatement("insert into " +
                                                 "\"Users\"(\"LOGIN\", \"PASSWORD\") values (?, ?)");
-                                pstmt.setString(1, userMail);
-                                pstmt.setString(2, passwordHax);
-                                pstmt.executeUpdate();
-                            } catch (SQLException e){
-                                e.printStackTrace();
+                                        pstmt.setString(1, userMail);
+                                        pstmt.setString(2, passwordHax);
+                                        pstmt.executeUpdate();
+                                    } catch (SQLException e) {
+                                        e.printStackTrace();
+                                    }
+                                    Users = DatabaseCommands.importUsers(database);
+                                    Commands.sendMessageToClient("Введите пароль", clientSocket);
+                                }
+                            } else {
+                                Commands.sendMessageToClient("Введена неверная почта. Попробуйте еще раз, или " +
+                                        "вернитесь назад с помощью комманды back", clientSocket);
                             }
-                            Users = DatabaseCommands.importUsers(database);
-                            Commands.sendMessageToClient("Введите пароль", clientSocket);
                         }
                     }
                     if (userChoice.equals("Login") || userChoice.equals("Register")) key2 = true;
                     /**
                      * третья фаза - либо юзверь вводит пароль и заходит, либо нет
                      */
-                    if (key3){
-                        if ((Users.get(userMail)).equals(DatabaseCommands.MD5hash(readClientStream))){
+                    if (key3) {
+                        if ((Users.get(userMail)).equals(DatabaseCommands.MD5hash(readClientStream))) {
                             Commands.sendMessageToClient("Успешная авторизация.\n" +
                                     "список доступных комманд:\n" +
                                     "show | info |remove_first | remove | remove_greater | remove_lower | " +
@@ -179,7 +196,7 @@ public class MyThread implements Runnable {
                             System.out.println("Пользователь " + userMail + " авторизовался");
                             keyQuit = true;
                             break;
-                        } else if (readClientStream.equals("back")){
+                        } else if (readClientStream.equals("back")) {
                             //возврат в первую фазу
                             Commands.sendMessageToClient("Войти или зарегестрироваться?" +
                                     " (Login/Register)", clientSocket);
@@ -205,12 +222,12 @@ public class MyThread implements Runnable {
          * теперь, когда мы авторизовались, можем работать с коллекцией
          */
         try {
-            while (!serverSocket.isClosed()) {
+            while (!clientSocket.isClosed()) {
                 while ((readClientStream = reader.readLine()) != null) {
                     //удалить первый элемент
                     if (readClientStream.equals("remove_first")) {
                         Commands.removeFirst(listOfShows, clientSocket, userMail);
-                    } else if (readClientStream.equals("Save")){
+                    } else if (readClientStream.equals("Save")) {
                         DatabaseCommands.UploadShows(database, listOfShows, clientSocket);
                     }
                     //информация о коллекции
@@ -238,16 +255,22 @@ public class MyThread implements Runnable {
                     } //остановить программу
                     else if (readClientStream.equals("stop")) {
                         Commands.sendMessageToClient("Вы завершили работу. Идите с богом.", clientSocket);
+                        DatabaseCommands.UploadShows(database, listOfShows, clientSocket);
                         reader.close();
                         clientSocket.close();
                         clientSocket = null;
-                    } else {
+                    } else if (readClientStream.equals("superStop")){
+                        DatabaseCommands.UploadShows(database, listOfShows, clientSocket);
+                        reader.close();
+                        clientSocket.close();
+                        clientSocket = null;
+                    }
+                    else {
                         Commands.sendMessageToClient("Введена неверная комманда", clientSocket);
                     }
                 }
-                System.out.println("Пользователь " + userMail + " отключился");
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             System.out.println("Пользователь " + userMail + " отключился");
         }
     }

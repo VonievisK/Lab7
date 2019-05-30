@@ -5,16 +5,8 @@ import Lab7.Shows.Show;
 import Lab7.Shows.ThemesList;
 
 import java.io.*;
-import java.math.BigInteger;
 import java.net.Socket;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Scanner;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Commands{

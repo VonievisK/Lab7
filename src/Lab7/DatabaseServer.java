@@ -1,16 +1,16 @@
 package Lab7;
 
 import Lab7.Commands.Commands;
+import Lab7.Commands.ConnectToDatabase;
 import Lab7.Commands.DatabaseCommands;
-import Lab7.Shows.DancingShow;
+import Lab7.Commands.PasswordGenerator;
 import Lab7.Shows.Show;
-import Lab7.Shows.ThemesList;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.sql.Connection;
@@ -48,7 +48,10 @@ public class DatabaseServer {
                      */
                     ResultSet data = database.createStatement().executeQuery("select * from " +
                             "INFORMATION_SCHEMA.TABLES where table_name = 'Shows'");
-                    if (data.next()) System.err.println("таблица Shows уже существует");
+                    if (data.next()) {
+                        System.err.println("таблица Shows уже существует");
+                        DatabaseCommands.ImportDatabase(database, listOfShows);
+                    }
                     else {
                         database.createStatement().executeUpdate(
                                 "create table if not exists \"Shows\" (\n" +
@@ -63,7 +66,10 @@ public class DatabaseServer {
                     }
                     data = database.createStatement().executeQuery("select * from " +
                             "INFORMATION_SCHEMA.TABLES where table_name = 'Users'");
-                    if (data.next()) System.err.println("таблица Users уже существует");
+                    if (data.next()){
+                        System.err.println("таблица Users уже существует");
+                        Users = DatabaseCommands.importUsers(database);
+                    }
                     else {
                         database.createStatement().executeUpdate(
                                 "create table if not exists \"Users\" (\n" +
@@ -78,37 +84,7 @@ public class DatabaseServer {
                     /**
                      * заполнение коллекции исходя из таблиц в базе данных
                      */
-                    ResultSet data = database.createStatement().executeQuery("select * from \"Shows\"");
-                    String name;
-                    ThemesList theme;
-                    int rating;
-                    String place;
-                    LocalDateTime dateOfCreation;
-                    String creator;
-                    while (data.next()) {
-                        name = data.getString("NAME");
-                        theme = Commands.stringIntoTheme(data.getString("THEME"));
-                        rating = data.getInt("RATING");
-                        place = data.getString("PLACE");
-                        dateOfCreation = LocalDateTime.parse(data.getString("DATEOFCREATION"));
-                        creator = data.getString("CREATOR");
-                        if (ThemesList.DANCING.equals(theme)) {
-                            listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
-                        } else if (ThemesList.HUMOR.equals(theme)) {
-                            //тут должно быть не dancing show, а humor show
-                            listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
-                        } else if (ThemesList.NEWS.equals(theme)) {
-                            //тут должно быть не dancing show, а news show
-                            listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
-                        } else if (ThemesList.SPACE.equals(theme)) {
-                            //тут должно быть не dancing show, а space show
-                            listOfShows.add(new DancingShow(name, rating, theme, place, creator, dateOfCreation));
-                        } else {
-                            //тут должно быть шоу без темы
-                            listOfShows.add(new DancingShow(name, rating, theme, place, creator));
-                        }
-                    }
-                    System.out.println("База данных успешно загружена");
+                    DatabaseCommands.ImportDatabase(database, listOfShows);
                     break;
                 } else {
                     System.out.println("Введена неверная комманда");
@@ -131,7 +107,7 @@ public class DatabaseServer {
         /**
          * создание сокета сервера
          */
-        int port = 7767;
+        int port = 7769;
         //Проверяем доступность порта
         ServerSocket serverSocket = null;
         try {
@@ -140,14 +116,13 @@ public class DatabaseServer {
             System.out.println("Порт: " + port + " - ошибка подключения");
             System.exit(-1);
         }
-
         /**
          * На случай, если все крашнулось и надо, чтобы изменения сохранились
          */
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-
+                DatabaseCommands.UploadShows(database, listOfShows);
             }
         });
 
@@ -171,57 +146,3 @@ public class DatabaseServer {
         }
     }
 }
-    /*public static void main(String[] args){
-        Date date = new Date();
-        CopyOnWriteArrayList<Show> listOfShows = Commands.makeLinkedListFromFile();
-        Runtime.getRuntime().addShutdownHook(new Thread()
-        {
-            public void run()
-            {
-                System.out.println("Сервер Остановлен");
-                ///home/s265949/Lab4/infoAboutShows.txt
-                ///Users/vonievisk/Library/Mobile Documents/com~apple~CloudDocs/Учеба/Java/lab3-5/src/Lab4/finalList.txt
-                try (FileWriter writer = new FileWriter("/Users/vonievisk/Library/Mobile Documents/com~apple~CloudDocs/Учеба/Java/lab 7/src/Lab7/Files/infoAboutShows.txt", false)) {
-                    for (int i = 0; i < listOfShows.size(); i++) {
-                        writer.write(listOfShows.get(i).getRating() + ", ");
-                        writer.write(listOfShows.get(i).getTheme().toString() + ", ");
-                        writer.write(listOfShows.get(i).getPlace());
-                        writer.write("\n");
-                    }
-                    writer.flush();
-                } catch (IOException e) {
-                    System.out.println(e);
-                }
-            }
-        });
-
-        int port = 7767;
-
-        //Проверяем доступность порта
-        ServerSocket serverSocket = null;
-        try {
-            serverSocket = new ServerSocket(port);
-        } catch (IOException e) {
-            System.out.println("Порт: " + port + " - ошибка подключения");
-            System.exit(-1);
-        }
-
-        //Создание клиента
-        Socket clientSocket = null;
-
-        while(!serverSocket.isClosed()){
-            try {
-                clientSocket = serverSocket.accept();
-            } catch (IOException e) {
-                System.out.println("Порт: " + port + " - ошибка подключения");
-                System.exit(-1);
-            }
-
-            MyThread myThread = new MyThread(serverSocket, clientSocket, listOfShows, date);
-            Thread thread = new Thread(myThread);
-            thread.start();
-        }
-    }
-}
-
-*/

@@ -1,8 +1,5 @@
 package Lab7;
 
-import Lab7.Commands.Commands;
-import Lab7.Commands.CompareToCommand;
-
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -10,8 +7,7 @@ import java.net.UnknownHostException;
 public class DatabaseClient {
     public static void main(String[] args) {
         String host = "localhost";
-        int port = 7767;
-
+        int port = 7769;
 
         //Создаем сокет
         String data;
@@ -48,6 +44,20 @@ public class DatabaseClient {
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out));
         String ln = null;
         System.out.println("Войти или зарегистрироваться?(Login/Register)");
+        /**
+         * если все пошло не так
+         */
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                try {
+                    writer.write("superStop");
+                    writer.flush();
+                } catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+        });
         try {
             while ((ln = reader.readLine()) != null) {
                 writer.write(ln + "\n");
@@ -71,47 +81,7 @@ public class DatabaseClient {
             System.exit(-1);
         }
     }
- }
+}
 
 
-        /*String host = "localhost";
-        int port = 50292;
 
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        //поток вывода, через который проходят сообщения
-        OutputStream out = null;
-        try {
-            out = socket.getOutputStream();
-        } catch (IOException e) {
-            System.out.println("Невозможно получить поток вывода!");
-            System.exit(-1);
-        }
-        //транслируем сообщения пользователя в поток вывода
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out));
-        String ln = null;
-        try {
-            while ((ln = reader.readLine()) != null) {
-                if (CompareToCommand.compareAdd(ln)){}
-                writer.write(ln + "\n");
-                writer.flush();
-                //Читаем обратное сообщение от сервера
-                try {
-                    InputStream iStream = socket.getInputStream();
-                    DataInputStream inStream = new DataInputStream(iStream);
-                    data = inStream.readUTF();
-                    System.out.println("Сервер ответил: \n" + data);
-                    if (data.equals("Вы завершили работу. Идите с богом.")){;
-                        System.exit(1);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    System.out.println("Погоди, браток, возможно, сервера упали");
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("Ошибка записи сообщения!");
-            System.exit(-1);
-        }
-    }
-}*/
